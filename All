@@ -1,0 +1,924 @@
+├── logs
+│   ├── combined.log
+│   └── error.log
+├── package-lock.json
+├── package.json
+{
+    "name": "bitmap420-server",
+    "version": "1.0.0",
+    "main": "dist/server.js",
+    "scripts": {
+        "start": "node dist/server.js",
+        "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+        "build": "tsc",
+        "setup-db": "ts-node src/setup.ts",
+        "check-permissions": "ts-node src/checkPermissions.ts"
+    },
+    "dependencies": {
+        "axios": "^0.24.0",
+        "cors": "^2.8.5",
+        "dotenv": "^10.0.0",
+        "express": "^4.17.1",
+        "joi": "^17.4.2",
+        "sqlite": "^4.0.23",
+        "sqlite3": "^5.0.2",
+        "winston": "^3.14.2"
+    },
+    "devDependencies": {
+        "@types/cors": "^2.8.12",
+        "@types/express": "^4.17.13",
+        "@types/node": "^16.11.0",
+        "@types/sqlite3": "^3.1.7",
+        "ts-node": "^10.3.0",
+        "ts-node-dev": "^1.1.8",
+        "typescript": "^4.4.4"
+    }
+}
+
+├── server
+├── src
+│   ├── checkPermissions.ts
+│   ├── db
+│   │   ├── database.js
+│   │   └── database.ts
+import * as sqlite3 from 'sqlite3';
+import { open, Database } from 'sqlite';
+import * as path from 'path';
+import { Deploy, Mint, Bitmap, Transfer } from '../types';
+
+const DB_PATH = '/mnt/c/Users/crowh/bitmap420/db/brc-420.db';
+
+let db: Database<sqlite3.Database, sqlite3.Statement> | null = null;
+
+export const setupDatabase = async (): Promise<void> => {
+    if (db) {
+        console.log('Database is already initialized');
+        return;
+    }
+
+    db = await open({
+        filename: DB_PATH,
+        driver: sqlite3.Database,
+    });
+
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS deploys (
+            id TEXT PRIMARY KEY,
+            source_id TEXT,
+            name TEXT,
+            max INTEGER,
+            price REAL,
+            block_height INTEGER,
+            inscription_index INTEGER,
+            timestamp INTEGER,
+            current_wallet TEXT,
+            deployer_address TEXT,
+            current_mint_count INTEGER DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS mints (
+            id TEXT PRIMARY KEY,
+            deploy_id TEXT,
+            block_height INTEGER,
+            inscription_index INTEGER,
+            timestamp INTEGER,
+            current_wallet TEXT,
+            FOREIGN KEY (deploy_id) REFERENCES deploys(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS bitmaps (
+            inscription_id TEXT PRIMARY KEY,
+            bitmap_number INTEGER,
+            content TEXT,
+            block_height INTEGER,
+            inscription_index INTEGER,
+            timestamp INTEGER,
+            current_wallet TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS transfers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            inscription_id TEXT,
+            from_wallet TEXT,
+            to_wallet TEXT,
+            block_height INTEGER,
+            timestamp INTEGER
+        );
+
+        CREATE TABLE IF NOT EXISTS processed_blocks (
+            block_height INTEGER PRIMARY KEY,
+            processed INTEGER DEFAULT 1
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_deploy_name ON deploys(name);
+        CREATE INDEX IF NOT EXISTS idx_bitmap_number ON bitmaps(bitmap_number);
+        CREATE INDEX IF NOT EXISTS idx_transfers_inscription_id ON transfers(inscription_id);
+    `);
+
+    console.log('Database setup completed successfully.');
+};
+
+// Ensure other database functions check if `db` is initialized:
+
+const checkDatabaseInitialized = () => {
+    if (!db) {
+        throw new Error('Database not initialized');
+    }
+};
+
+
+
+export const getDeployById = async (id: string): Promise<Deploy | undefined> => {
+  if (!db) throw new Error('Database not initialized');
+  return db.get<Deploy>('SELECT * FROM deploys WHERE id = ?', [id]);
+};
+
+export const getDeployBySourceInscription = async (sourceInscriptionId: string): Promise<Deploy | null> => {
+  if (!db) throw new Error('Database not initialized');
+  const deploy = await db.get<Deploy>('SELECT * FROM deploys WHERE source_id = ?', [sourceInscriptionId]);
+  return deploy || null;
+};
+
+export const getMintCount = async (deployId: string): Promise<number> => {
+  if (!db) throw new Error('Database not initialized');
+  const result = await db.get<{ count: number }>('SELECT COUNT(*) as count FROM mints WHERE deploy_id = ?', [deployId]);
+  return result?.count || 0;
+};
+
+export const getBitmapByNumber = async (bitmapNumber: number): Promise<Bitmap | undefined> => {
+  if (!db) throw new Error('Database not initialized');
+  return db.get<Bitmap>('SELECT * FROM bitmaps WHERE bitmap_number = ?', [bitmapNumber]);
+};
+
+export const incrementMintCount = async (deployId: string): Promise<void> => {
+  if (!db) throw new Error('Database not initialized');
+  await db.run('UPDATE deploys SET current_mint_count = current_mint_count + 1 WHERE id = ?', [deployId]);
+};
+
+export const insertDeploy = async (deploy: Deploy): Promise<void> => {
+  if (!db) throw new Error('Database not initialized');
+  await db.run(
+    'INSERT INTO deploys (id, source_id, name, max, price, block_height, inscription_index, timestamp, current_wallet, deployer_address, current_mint_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      deploy.id,
+      deploy.source_id,
+      deploy.name,
+      deploy.max,
+      deploy.price,
+      deploy.block_height,
+      deploy.inscription_index,
+      deploy.timestamp,
+      deploy.current_wallet,
+      deploy.deployer_address,
+      deploy.current_mint_count,
+    ]
+  );
+};
+
+export const insertMint = async (mint: Mint): Promise<void> => {
+  if (!db) throw new Error('Database not initialized');
+  await db.run(
+    'INSERT INTO mints (id, deploy_id, block_height, inscription_index, timestamp, current_wallet) VALUES (?, ?, ?, ?, ?, ?)',
+    [mint.id, mint.deploy_id, mint.block_height, mint.inscription_index, mint.timestamp, mint.current_wallet]
+  );
+};
+
+export const insertBitmap = async (bitmap: Bitmap): Promise<void> => {
+  if (!db) throw new Error('Database not initialized');
+  await db.run(
+    'INSERT INTO bitmaps (inscription_id, bitmap_number, content, block_height, inscription_index, timestamp, current_wallet) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [
+      bitmap.inscription_id,
+      bitmap.bitmap_number,
+      bitmap.content,
+      bitmap.block_height,
+      bitmap.inscription_index,
+      bitmap.timestamp,
+      bitmap.current_wallet,
+    ]
+  );
+};
+
+export const insertTransfer = async (transfer: Transfer): Promise<void> => {
+  if (!db) throw new Error('Database not initialized');
+  await db.run(
+    'INSERT INTO transfers (inscription_id, from_wallet, to_wallet, block_height, timestamp) VALUES (?, ?, ?, ?, ?)',
+    [transfer.inscription_id, transfer.from_wallet, transfer.to_wallet, transfer.block_height, transfer.timestamp]
+  );
+};
+
+export const updateInscriptionWallet = async (inscriptionId: string, newWallet: string): Promise<void> => {
+  if (!db) throw new Error('Database not initialized');
+  await db.run('UPDATE deploys SET current_wallet = ? WHERE id = ?', [newWallet, inscriptionId]);
+  await db.run('UPDATE mints SET current_wallet = ? WHERE id = ?', [newWallet, inscriptionId]);
+  await db.run('UPDATE bitmaps SET current_wallet = ? WHERE inscription_id = ?', [newWallet, inscriptionId]);
+};
+
+export const getWalletHistory = async (inscriptionId: string): Promise<Transfer[]> => {
+  if (!db) throw new Error('Database not initialized');
+  return db.all<Transfer[]>('SELECT * FROM transfers WHERE inscription_id = ? ORDER BY block_height ASC', [inscriptionId]);
+};
+
+export const getCurrentWallet = async (inscriptionId: string): Promise<string | null> => {
+  if (!db) throw new Error('Database not initialized');
+  const deploy = await db.get<{ current_wallet: string }>('SELECT current_wallet FROM deploys WHERE id = ?', [inscriptionId]);
+  if (deploy) return deploy.current_wallet;
+
+  const mint = await db.get<{ current_wallet: string }>('SELECT current_wallet FROM mints WHERE id = ?', [inscriptionId]);
+  if (mint) return mint.current_wallet;
+
+  const bitmap = await db.get<{ current_wallet: string }>('SELECT current_wallet FROM bitmaps WHERE inscription_id = ?', [inscriptionId]);
+  if (bitmap) return bitmap.current_wallet;
+
+  return null;
+};
+
+export const getDeploys = async (page: number, limit: number, search: string): Promise<Deploy[]> => {
+  if (!db) throw new Error('Database not initialized');
+  const offset = (page - 1) * limit;
+  return db.all<Deploy[]>(
+    `
+    SELECT * FROM deploys
+    WHERE name LIKE ?
+    ORDER BY timestamp DESC
+    LIMIT ? OFFSET ?
+  `,
+    [`%${search}%`, limit, offset]
+  );
+};
+
+export const getDeployMints = async (deployId: string, page: number, limit: number): Promise<Mint[]> => {
+  if (!db) throw new Error('Database not initialized');
+  const offset = (page - 1) * limit;
+  return db.all<Mint[]>(
+    `
+    SELECT * FROM mints
+    WHERE deploy_id = ?
+    ORDER BY timestamp DESC
+    LIMIT ? OFFSET ?
+  `,
+    [deployId, limit, offset]
+  );
+};
+
+export const getBitmaps = async (page: number, limit: number, search: string): Promise<Bitmap[]> => {
+  if (!db) throw new Error('Database not initialized');
+  const offset = (page - 1) * limit;
+  return db.all<Bitmap[]>(
+    `
+    SELECT * FROM bitmaps
+    WHERE bitmap_number LIKE ?
+    ORDER BY timestamp DESC
+    LIMIT ? OFFSET ?
+  `,
+    [`%${search}%`, limit, offset]
+  );
+};
+
+export const getLatestProcessedBlock = async (): Promise<number> => {
+  if (!db) throw new Error('Database not initialized');
+  const result = await db.get<{ latest_block: number }>('SELECT MAX(block_height) as latest_block FROM processed_blocks');
+  return result?.latest_block || 0;
+};
+
+export const markBlocksAsProcessed = async (blockHeights: number[]): Promise<void> => {
+  if (!db) throw new Error('Database not initialized');
+  const placeholders = blockHeights.map(() => '(?)').join(',');
+  await db.run(`INSERT OR IGNORE INTO processed_blocks (block_height) VALUES ${placeholders}`, blockHeights);
+};
+
+export const getUnprocessedBlockRange = async (start: number, end: number): Promise<number[]> => {
+  if (!db) throw new Error('Database not initialized');
+  const result = await db.all<{ x: number }[]>(
+    `
+    WITH RECURSIVE
+    range(x) AS (
+      SELECT ? 
+      UNION ALL 
+      SELECT x+1 FROM range WHERE x < ?
+    )
+    SELECT x FROM range
+    WHERE x NOT IN (SELECT block_height FROM processed_blocks)
+    ORDER BY x
+  `,
+    [start, end - 1]
+  );
+  return result.map((row) => row.x);
+};
+
+export { db };
+
+│   ├── middleware
+│   │   └── errorHandler.ts
+
+import { Request, Response, NextFunction } from 'express';
+
+export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error(err.stack);
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : err.message
+  });
+};
+│   ├── routes
+│   │   └── api.ts
+
+import express from 'express';
+import { getDeploys, getDeployById as getDeployDetails, getDeployMints, getBitmaps } from '../db/database';
+
+
+const router = express.Router();
+
+router.get('/deploys/with-mints', async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, search = '' } = req.query;
+    const deploys = await getDeploys(Number(page), Number(limit), String(search));
+    res.json(deploys);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/deploy/:deploy_id/summary', async (req, res, next) => {
+    try {
+        const { deploy_id } = req.params;
+        const deploy = await getDeployDetails(deploy_id);
+        if (!deploy) {
+            return res.status(404).json({ error: 'Deploy not found' });
+        }
+        res.json(deploy);
+    } catch (error) {
+        next(error);
+    }
+});
+
+
+router.get('/deploy/:deploy_id/mints', async (req, res, next) => {
+  try {
+    const { deploy_id } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const mints = await getDeployMints(deploy_id, Number(page), Number(limit));
+    res.json(mints);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/bitmaps', async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, search = '' } = req.query;
+    const bitmaps = await getBitmaps(Number(page), Number(limit), String(search));
+    res.json(bitmaps);
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;
+│   ├── server.ts
+
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import apiRoutes from './routes/api';
+import { setupDatabase } from './db/database';
+import { startBlockProcessing } from './workers/processBlocks';
+import logger from './utils/logger';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(express.json());
+
+app.use('/api', apiRoutes);
+
+setupDatabase().then(() => {
+  app.listen(PORT, () => {
+    logger.info(`Server running on http://localhost:${PORT}`);
+    startBlockProcessing().catch(error => {
+      logger.error("Error in main processing loop:", error);
+    });
+  });
+}).catch((error) => {
+  logger.error('Failed to set up database:', error);
+  process.exit(1);
+});
+│   ├── setup.js
+
+│   ├── setup.ts
+import { setupDatabase } from './db/database';
+
+async function setup() {
+    try {
+        await setupDatabase();
+        console.log('Database setup completed successfully.');
+        process.exit(0);
+    } catch (error) {
+        console.error('Error setting up database:', error);
+        if (error instanceof Error) {
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+        }
+        process.exit(1);
+    }
+}
+
+setup();
+
+│   ├── types
+│   │   ├── index.js
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = logger;
+
+│   │   └── index.ts
+
+export interface Deploy {
+    p: string;
+    op: string;
+    id: string;
+    name: string;
+    max: number;
+    price: number;
+    block_height: number;
+    inscription_index: number;
+    timestamp: number;
+    current_wallet: string;
+    deployer_address: string;
+    source_id: string;
+    current_mint_count: number;
+}
+
+
+export interface Mint {
+    id: string;
+    deploy_id: string;
+    block_height: number;
+    inscription_index: number;
+    timestamp: number;
+    current_wallet: string;
+}
+
+export interface Bitmap {
+    inscription_id: string;
+    bitmap_number: number;
+    content: string;
+    block_height: number;
+    inscription_index: number;
+    timestamp: number;
+    current_wallet: string;
+}
+
+export interface Transfer {
+    inscription_id: string;
+    from_wallet: string;
+    to_wallet: string;
+    block_height: number;
+    timestamp: number;
+}
+declare const logger: {
+    info: (message: string, ...meta: any[]) => void;
+    debug: (message: string, ...meta: any[]) => void;
+    error: (message: string, ...meta: any[]) => void;
+    warn: (message: string, ...meta: any[]) => void;
+};
+export default logger;
+
+│   ├── utils
+│   │   ├── blockProcessor.ts
+import axios from 'axios';
+import {
+    insertDeploy, insertMint, insertBitmap, getDeployById, getMintCount, getBitmapByNumber, 
+    getCurrentWallet, updateInscriptionWallet, insertTransfer, getDeployBySourceInscription, 
+    incrementMintCount, setupDatabase
+} from '../db/database';
+import { validateDeploy, validateMint, validateBitmap } from './validation';
+import { Deploy, Mint, Bitmap, Transfer } from '../types';
+import logger from './logger';
+
+// Ensure database is set up before any processing starts
+setupDatabase().catch((error) => {
+    logger.error('Failed to set up the database:', error);
+    process.exit(1); // Exit if the database setup fails
+});
+
+const API_URL = process.env.API_URL || 'http://192.168.1.66:4000';
+const API_WALLET_URL = process.env.API_WALLET_URL || 'http://192.168.1.66:3006/api';
+
+// Function to fetch block data
+const fetchBlockData = async (blockHeight: number) => {
+    try {
+        const response = await axios.get(`${API_URL}/block/${blockHeight}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        return response.data;
+    } catch (error) {
+        logger.error(`Error fetching block data for block ${blockHeight}:`, { message: (error as any).message });
+        throw error;
+    }
+};
+
+// Function to fetch inscription content
+const fetchInscriptionContent = async (inscriptionId: string) => {
+    try {
+        const response = await axios.get(`${API_URL}/content/${inscriptionId}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        return response.data;
+    } catch (error) {
+        logger.error(`Error fetching inscription content for ID ${inscriptionId}:`, { error, inscriptionId });
+        throw error;
+    }
+};
+
+// Function to get wallet information
+const getWalletInfo = async (inscriptionId: string) => {
+    const txId = inscriptionId.replace(/i\d+$/, ':0');
+    try {
+        const response = await axios.get(`${API_URL}/output/${txId}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        return response.data;
+    } catch (error) {
+        logger.error(`Error fetching wallet info for inscription ID ${inscriptionId}:`, { error, inscriptionId });
+        throw error;
+    }
+};
+
+// Function to handle transfer of inscriptions
+const handleTransfer = async (inscriptionId: string, newWallet: string, blockHeight: number) => {
+    const currentWallet = await getCurrentWallet(inscriptionId);
+    if (currentWallet && currentWallet !== newWallet) {
+        const transfer: Transfer = {
+            inscription_id: inscriptionId,
+            from_wallet: currentWallet,
+            to_wallet: newWallet,
+            block_height: blockHeight,
+            timestamp: Date.now()
+        };
+        await insertTransfer(transfer);
+        await updateInscriptionWallet(inscriptionId, newWallet);
+        logger.info(`Processed transfer of inscription ${inscriptionId} from ${currentWallet} to ${newWallet}`);
+    }
+};
+
+// Function to validate mint payment
+const validateMintPayment = async (mintInscriptionId: string, deploy: Deploy): Promise<boolean> => {
+    try {
+        const txId = mintInscriptionId.replace(/i\d+$/, '');
+        const response = await axios.get(`${API_WALLET_URL}/tx/${txId}`);
+        const tx = response.data;
+
+        let totalPaid = 0;
+        for (const output of tx.vout) {
+            if (output.scriptpubkey_address === deploy.deployer_address) {
+                totalPaid += output.value;
+            }
+        }
+
+        return totalPaid >= deploy.price;
+    } catch (error) {
+        logger.error(`Error validating payment for mint ${mintInscriptionId}:`, { error, mintInscriptionId});
+        return false;
+    }
+};
+
+export const processBlock = async (blockHeight: number) => {
+    logger.info(`Starting to process block ${blockHeight}`);
+    try {
+        const blockData = await fetchBlockData(blockHeight);
+        logger.info(`Fetched data for block ${blockHeight}, found ${blockData.inscriptions.length} inscriptions`);
+
+        let deployCount = 0, mintCount = 0, bitmapCount = 0;
+
+        for (const [index, inscriptionId] of blockData.inscriptions.entries()) {
+            try {
+                const content = await fetchInscriptionContent(inscriptionId);
+                logger.debug(`Fetched content for inscription ${inscriptionId}`);
+
+                const walletInfo = await getWalletInfo(inscriptionId);
+
+                if (typeof content === 'object' && content.p === 'brc-420') {
+                    if (content.op === 'deploy') {
+                        const deploy = await processDeploy(content, inscriptionId, blockHeight, index, walletInfo.address);
+                        if (deploy) deployCount++;
+                    } else if (content.op === 'mint') {
+                        const mint = await processMint(content, inscriptionId, blockHeight, index, walletInfo.address);
+                        if (mint) mintCount++;
+                    }
+                } else if (typeof content === 'string') {
+                    if (content.startsWith('/content/')) {
+                        const mint = await processMint(content, inscriptionId, blockHeight, index, walletInfo.address);
+                        if (mint) mintCount++;
+                    } else if (content.endsWith('.bitmap')) {
+                        const bitmap = await processBitmap(content, inscriptionId, blockHeight, index, walletInfo.address);
+                        if (bitmap) bitmapCount++;
+                    }
+                }
+
+                await handleTransfer(inscriptionId, walletInfo.address, blockHeight);
+            } catch (error) {
+                logger.error(`Error processing inscription ${inscriptionId} in block ${blockHeight}:`, error);
+            }
+        }
+
+        logger.info(`Finished processing block ${blockHeight}. Deploys: ${deployCount}, Mints: ${mintCount}, Bitmaps: ${bitmapCount}`);
+    } catch (error) {
+        logger.error(`Error processing block ${blockHeight}:`, error);
+        throw error;
+    }
+};
+
+// Function to process deploy operations
+const processDeploy = async (content: any, inscriptionId: string, blockHeight: number, index: number, wallet: string): Promise<boolean> => {
+    const deploy: Deploy = {
+        p: 'brc-420',
+        op: 'deploy',
+        id: inscriptionId,
+        source_id: content.id,
+        name: content.name,
+        max: parseInt(content.max),
+        price: parseFloat(content.price),
+        block_height: blockHeight,
+        inscription_index: index,
+        timestamp: Date.now(),
+        current_wallet: wallet,
+        deployer_address: wallet,
+        current_mint_count: 0
+    };
+
+    const { error } = validateDeploy(deploy);
+    if (error) {
+        logger.error(`Invalid deploy in block ${blockHeight}:`, { error, inscriptionId });
+        return false;
+    }
+
+    const existingDeploy = await getDeployById(deploy.source_id);
+    if (existingDeploy) {
+        logger.warn(`Duplicate deploy attempt for source id ${deploy.source_id} in block ${blockHeight}`);
+        return false;
+    }
+
+    await insertDeploy(deploy);
+    logger.info(`Inserted deploy: ${deploy.id}`);
+    return true;
+};
+
+// Function to process mint operations
+const processMint = async (content: any, inscriptionId: string, blockHeight: number, index: number, wallet: string): Promise<boolean> => {
+    const deployId = typeof content === 'object' && 'id' in content ? content.id : content.split('/')[2];
+    const mint: Mint = {
+        id: inscriptionId,
+        deploy_id: deployId,
+        block_height: blockHeight,
+        inscription_index: index,
+        timestamp: Date.now(),
+        current_wallet: wallet
+    };
+
+    const { error } = validateMint(mint);
+    if (error) {
+        logger.error(`Invalid mint in block ${blockHeight}:`, { error, inscriptionId });
+        return false;
+    }
+
+    const deploy = await getDeployBySourceInscription(mint.deploy_id);
+    if (!deploy) {
+        logger.warn(`Mint attempt for non-existent deploy with source inscription ${mint.deploy_id} in block ${blockHeight}`);
+        return false;
+    }
+
+    const currentMintCount = await getMintCount(deploy.id);
+    if (currentMintCount >= deploy.max) {
+        logger.warn(`Mint attempt exceeds max supply for ${deploy.name} in block ${blockHeight}`);
+        return false;
+    }
+
+    if (!await validateMintPayment(inscriptionId, deploy)) {
+        logger.warn(`Invalid payment for mint ${inscriptionId} in block ${blockHeight}`);
+        return false;
+    }
+
+    if (!await validateMintContentType(inscriptionId, mint.deploy_id)) {
+        logger.warn(`Invalid content type for mint ${inscriptionId} in block ${blockHeight}`);
+        return false;
+    }
+
+    await insertMint(mint);
+    await incrementMintCount(deploy.id);
+    logger.info(`Inserted mint: ${mint.id}`);
+    return true;
+};
+
+// Function to validate mint content type
+const validateMintContentType = async (mintInscriptionId: string, sourceInscriptionId: string): Promise<boolean> => {
+    const mintContentType = await getInscriptionContentType(mintInscriptionId);
+    const sourceContentType = await getInscriptionContentType(sourceInscriptionId);
+    return mintContentType === sourceContentType;
+};
+
+// Function to get inscription content type
+const getInscriptionContentType = async (inscriptionId: string): Promise<string> => {
+    const response = await axios.get(`${API_URL}/content/${inscriptionId}`, {
+        headers: { 'Accept': 'application/json' }
+    });
+    return response.headers['content-type'];
+};
+
+// Function to process bitmap operations
+const processBitmap = async (content: string, inscriptionId: string, blockHeight: number, index: number, wallet: string): Promise<boolean> => {
+    const bitmap: Bitmap = {
+        inscription_id: inscriptionId,
+        bitmap_number: parseInt(content.split('.')[0]),
+        content: content,
+        block_height: blockHeight,
+        inscription_index: index,
+        timestamp: Date.now(),
+        current_wallet: wallet
+    };
+
+    const { error } = validateBitmap(bitmap);
+    if (error) {
+        logger.error(`Invalid bitmap in block ${blockHeight}:`, { error, inscriptionId });
+        return false;
+    }
+
+    if (bitmap.bitmap_number > blockHeight) {
+        logger.warn(`Bitmap number ${bitmap.bitmap_number} is greater than current block ${blockHeight}`);
+        return false;
+    }
+
+    const existingBitmap = await getBitmapByNumber(bitmap.bitmap_number);
+    if (existingBitmap) {
+        if (existingBitmap.block_height < blockHeight || 
+            (existingBitmap.block_height === blockHeight && existingBitmap.inscription_index < index)) {
+            logger.warn(`Duplicate bitmap number ${bitmap.bitmap_number} in block ${blockHeight}`);
+            return false;
+        }
+    }
+
+    await insertBitmap(bitmap);
+    logger.info(`Inserted bitmap: ${bitmap.inscription_id}`);
+    return true;
+};
+
+
+│   │   ├── logger.ts
+
+import winston from 'winston';
+import path from 'path';
+
+const logDir = path.join(__dirname, '../../logs');
+
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'bitmap420' },
+  transports: [
+    new winston.transports.File({ filename: path.join(logDir, 'error.log'), level: 'error' }),
+    new winston.transports.File({ filename: path.join(logDir, 'combined.log') }),
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    })
+  ]
+});
+
+
+export default logger;
+│   │   └── validation.ts
+
+import Joi from 'joi';
+
+
+
+export const deploySchema = Joi.object({
+    p: Joi.string().valid('brc-420').required(),
+    op: Joi.string().valid('deploy').required(),
+    id: Joi.string().required(),
+    source_id: Joi.string().required(),
+    name: Joi.string().max(128).required(),
+    max: Joi.number().integer().min(1).required(),
+    price: Joi.number().min(0.00000420).required(),
+    block_height: Joi.number().integer().min(0).required(),
+    inscription_index: Joi.number().integer().min(0).required(),
+    timestamp: Joi.number().integer().min(0).required(),
+    current_wallet: Joi.string().required(),
+    deployer_address: Joi.string().required(),
+    current_mint_count: Joi.number().integer().min(0).default(0)
+});
+
+export const mintSchema = Joi.object({
+    id: Joi.string().required(),
+    content: Joi.string().pattern(/^\/content\/[a-zA-Z0-9]+$/).required(),
+    block_height: Joi.number().integer().min(0).required(),
+    inscription_index: Joi.number().integer().min(0).required(),
+    timestamp: Joi.number().integer().min(0).required(),
+    current_wallet: Joi.string().required()
+});
+
+export const bitmapSchema = Joi.object({
+    inscription_id: Joi.string().required(),
+    bitmap_number: Joi.number().integer().min(0).required(),
+    content: Joi.string().pattern(/^\d+\.bitmap$/).required(),
+    block_height: Joi.number().integer().min(0).required(),
+    inscription_index: Joi.number().integer().min(0).required(),
+    timestamp: Joi.number().integer().min(0).required(),
+    current_wallet: Joi.string().required()
+});
+
+export const validateDeploy = (data: any) => deploySchema.validate(data);
+export const validateMint = (data: any) => mintSchema.validate(data);
+export const validateBitmap = (data: any) => bitmapSchema.validate(data);
+
+│   └── workers
+│       └── processBlocks.ts
+
+import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
+import { processBlock } from '../utils/blockProcessor';
+import { getLatestProcessedBlock, markBlocksAsProcessed, getUnprocessedBlockRange } from '../db/database';
+
+const BATCH_SIZE = 100; // Process 100 blocks at a time
+const MAX_WORKERS = 4; // Use 4 workers for parallel processing
+const RETRY_DELAY = 5000; // 5 seconds delay before retrying
+
+export const startBlockProcessing = async () => {
+  const startBlock = await getLatestProcessedBlock() || parseInt(process.env.START_BLOCK || '792435', 10);
+  let currentBlock = startBlock;
+
+  const processNextBatch = async () => {
+    const endBlock = currentBlock + BATCH_SIZE;
+    const unprocessedBlocks = await getUnprocessedBlockRange(currentBlock, endBlock);
+
+    if (unprocessedBlocks.length === 0) {
+      console.log(`All blocks up to ${endBlock} have been processed.`);
+      currentBlock = endBlock;
+      setTimeout(processNextBatch, 1000); // Wait 1 second before checking for new blocks
+      return;
+    }
+
+    const workerPromises = [];
+    for (let i = 0; i < MAX_WORKERS; i++) {
+      const workerBlocks = unprocessedBlocks.filter((_: number, index: number) => index % MAX_WORKERS === i);
+      if (workerBlocks.length > 0) {
+        workerPromises.push(createWorker(workerBlocks));
+      }
+    }
+
+    try {
+      await Promise.all(workerPromises);
+      await markBlocksAsProcessed(unprocessedBlocks);
+      currentBlock = Math.max(...unprocessedBlocks) + 1;
+      processNextBatch();
+    } catch (error) {
+      console.error('Error processing batch:', error);
+      setTimeout(processNextBatch, RETRY_DELAY); // Retry after delay
+    }
+  };
+
+  processNextBatch();
+};
+
+const createWorker = (blocks: number[]): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(__filename, { workerData: { blocks } });
+    worker.on('message', resolve);
+    worker.on('error', reject);
+    worker.on('exit', (code) => {
+      if (code !== 0) reject(new Error(`Worker stopped with exit code ${code}`));
+    });
+  });
+};
+
+if (!isMainThread) {
+  const { blocks } = workerData;
+  Promise.all(blocks.map(processBlock))
+    .then(() => parentPort?.postMessage({ success: true }))
+    .catch((error) => parentPort?.postMessage({ success: false, error: error.message }));
+}
+
+└── tsconfig.json
+
+{
+    "compilerOptions": {
+      "target": "es6",
+      "module": "commonjs",
+      "outDir": "./dist",
+      "rootDir": "./src",
+      "strict": true,
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "skipLibCheck": true,
+      "forceConsistentCasingInFileNames": true
+    },
+    "include": ["src/**/*"],
+    "exclude": ["node_modules", "**/*.spec.ts"]
+  }
