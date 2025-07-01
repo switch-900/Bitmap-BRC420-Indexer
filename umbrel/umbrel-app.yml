@@ -9,7 +9,7 @@ description: >-
   specifically designed to index and track BRC-420 inscriptions, Bitcoin bitmap 
   inscriptions, and bitmap parcels. Features real-time indexing, robust validation, 
   parcel tracking, and a beautiful web interface.
-developer: Naomi
+developer: switch-900
 website: https://github.com/switch-900/Bitmap-BRC420-Indexer
 dependencies:
   - ordinals
@@ -39,5 +39,5 @@ releaseNotes: >-
   - SQLite database with optimized indexing
   - Automatic retry mechanism for failed blocks
   - Support for wallet tracking and ownership changes
-submitter: Naomi
+submitter: switch-900
 submission: https://github.com/switch-900/Bitmap-BRC420-Indexer
