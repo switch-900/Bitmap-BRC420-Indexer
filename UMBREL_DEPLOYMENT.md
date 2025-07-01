@@ -28,7 +28,7 @@ Before installing, ensure these Umbrel apps are installed and running:
 
 1. **Add the Community App Store**:
    ```
-   Repository URL: https://github.com/switch-900/Bitmap-BRC420-Indexer
+   Repository URL: https://github.com/switch-900/bitmap-brc420-community-app-store
    ```
 
 2. **Install Dependencies**:
