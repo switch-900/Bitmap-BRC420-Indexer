@@ -1,7 +1,7 @@
 import * as sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
 import * as path from 'path';
-import { Deploy, Mint, Bitmap, Transfer } from '../types';
+import { Deploy, Mint, Bitmap, Transfer, Parcel, BlockStats } from '../types';
 import logger from '../utils/logger';
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../brc-420.db');
@@ -54,6 +54,32 @@ export const setupDatabase = async (): Promise<void> => {
       current_wallet TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS parcels (
+      inscription_id TEXT PRIMARY KEY,
+      parcel_number INTEGER,
+      bitmap_number INTEGER,
+      bitmap_inscription_id TEXT,
+      content TEXT,
+      address TEXT,
+      block_height INTEGER,
+      timestamp INTEGER,
+      transaction_count INTEGER,
+      is_valid INTEGER DEFAULT 1,
+      wallet TEXT,
+      FOREIGN KEY (bitmap_inscription_id) REFERENCES bitmaps(inscription_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS block_stats (
+      block_height INTEGER PRIMARY KEY,
+      total_transactions INTEGER,
+      total_inscriptions INTEGER,
+      deploys_count INTEGER DEFAULT 0,
+      mints_count INTEGER DEFAULT 0,
+      bitmaps_count INTEGER DEFAULT 0,
+      parcels_count INTEGER DEFAULT 0,
+      processed_at INTEGER
+    );
+
     CREATE TABLE IF NOT EXISTS transfers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       inscription_id TEXT,
@@ -70,7 +96,10 @@ export const setupDatabase = async (): Promise<void> => {
 
     CREATE INDEX IF NOT EXISTS idx_deploy_name ON deploys(name);
     CREATE INDEX IF NOT EXISTS idx_bitmap_number ON bitmaps(bitmap_number);
+    CREATE INDEX IF NOT EXISTS idx_parcel_bitmap ON parcels(bitmap_number);
+    CREATE INDEX IF NOT EXISTS idx_parcel_number ON parcels(parcel_number, bitmap_number);
     CREATE INDEX IF NOT EXISTS idx_transfers_inscription_id ON transfers(inscription_id);
+    CREATE INDEX IF NOT EXISTS idx_block_stats_height ON block_stats(block_height);
   `);
 
   logger.info('Database setup completed successfully.');
@@ -156,13 +185,6 @@ export const insertTransfer = async (transfer: Transfer): Promise<void> => {
   );
 };
 
-export const updateInscriptionWallet = async (inscriptionId: string, newWallet: string): Promise<void> => {
-  if (!db) throw new Error('Database not initialized');
-  await db.run('UPDATE deploys SET current_wallet = ? WHERE id = ?', [newWallet, inscriptionId]);
-  await db.run('UPDATE mints SET current_wallet = ? WHERE id = ?', [newWallet, inscriptionId]);
-  await db.run('UPDATE bitmaps SET current_wallet = ? WHERE inscription_id = ?', [newWallet, inscriptionId]);
-};
-
 export const getWalletHistory = async (inscriptionId: string): Promise<Transfer[]> => {
   if (!db) throw new Error('Database not initialized');
   return db.all<Transfer[]>('SELECT * FROM transfers WHERE inscription_id = ? ORDER BY block_height ASC', [inscriptionId]);
@@ -178,6 +200,9 @@ export const getCurrentWallet = async (inscriptionId: string): Promise<string | 
 
   const bitmap = await db.get<{ current_wallet: string }>('SELECT current_wallet FROM bitmaps WHERE inscription_id = ?', [inscriptionId]);
   if (bitmap) return bitmap.current_wallet;
+
+  const parcel = await db.get<{ wallet: string }>('SELECT wallet FROM parcels WHERE inscription_id = ?', [inscriptionId]);
+  if (parcel) return parcel.wallet;
 
   return null;
 };
@@ -253,6 +278,103 @@ export const getUnprocessedBlockRange = async (start: number, end: number): Prom
     [start, end - 1]
   );
   return result.map((row) => row.x);
+};
+
+// Parcel-related functions
+export const insertParcel = async (parcel: Parcel): Promise<void> => {
+  if (!db) throw new Error('Database not initialized');
+  await db.run(
+    `INSERT INTO parcels (inscription_id, parcel_number, bitmap_number, bitmap_inscription_id, content, address, block_height, timestamp, transaction_count, is_valid, wallet) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      parcel.inscription_id,
+      parcel.parcel_number,
+      parcel.bitmap_number,
+      parcel.bitmap_inscription_id,
+      parcel.content,
+      parcel.address,
+      parcel.block_height,
+      parcel.timestamp,
+      parcel.transaction_count || null,
+      parcel.is_valid ? 1 : 0,
+      parcel.wallet,
+    ]
+  );
+};
+
+export const getParcelsByBitmap = async (bitmapNumber: number, page: number = 1, limit: number = 20): Promise<Parcel[]> => {
+  if (!db) throw new Error('Database not initialized');
+  const offset = (page - 1) * limit;
+  return db.all<Parcel[]>(
+    `SELECT * FROM parcels WHERE bitmap_number = ? AND is_valid = 1 ORDER BY parcel_number ASC LIMIT ? OFFSET ?`,
+    [bitmapNumber, limit, offset]
+  );
+};
+
+export const getParcels = async (page: number = 1, limit: number = 20, search: string = ''): Promise<Parcel[]> => {
+  if (!db) throw new Error('Database not initialized');
+  const offset = (page - 1) * limit;
+  return db.all<Parcel[]>(
+    `SELECT * FROM parcels WHERE (parcel_number LIKE ? OR bitmap_number LIKE ?) AND is_valid = 1 ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+    [`%${search}%`, `%${search}%`, limit, offset]
+  );
+};
+
+export const getParcelByInscriptionId = async (inscriptionId: string): Promise<Parcel | undefined> => {
+  if (!db) throw new Error('Database not initialized');
+  return db.get<Parcel>('SELECT * FROM parcels WHERE inscription_id = ?', [inscriptionId]);
+};
+
+export const getExistingParcel = async (parcelNumber: number, bitmapNumber: number): Promise<Parcel | undefined> => {
+  if (!db) throw new Error('Database not initialized');
+  return db.get<Parcel>(
+    'SELECT * FROM parcels WHERE parcel_number = ? AND bitmap_number = ? ORDER BY block_height ASC, inscription_id ASC LIMIT 1',
+    [parcelNumber, bitmapNumber]
+  );
+};
+
+export const replaceParcel = async (oldInscriptionId: string, newParcel: Parcel): Promise<void> => {
+  if (!db) throw new Error('Database not initialized');
+  await db.run('DELETE FROM parcels WHERE inscription_id = ?', [oldInscriptionId]);
+  await insertParcel(newParcel);
+};
+
+export const getBitmapInscriptionId = async (bitmapNumber: number): Promise<string | null> => {
+  if (!db) throw new Error('Database not initialized');
+  const result = await db.get<{ inscription_id: string }>('SELECT inscription_id FROM bitmaps WHERE bitmap_number = ?', [bitmapNumber]);
+  return result?.inscription_id || null;
+};
+
+// Block stats functions
+export const insertBlockStats = async (stats: BlockStats): Promise<void> => {
+  if (!db) throw new Error('Database not initialized');
+  await db.run(
+    `INSERT OR REPLACE INTO block_stats (block_height, total_transactions, total_inscriptions, deploys_count, mints_count, bitmaps_count, parcels_count, processed_at) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      stats.block_height,
+      stats.total_transactions,
+      stats.total_inscriptions,
+      stats.deploys_count,
+      stats.mints_count,
+      stats.bitmaps_count,
+      stats.parcels_count,
+      stats.processed_at,
+    ]
+  );
+};
+
+export const getBlockStats = async (blockHeight: number): Promise<BlockStats | undefined> => {
+  if (!db) throw new Error('Database not initialized');
+  return db.get<BlockStats>('SELECT * FROM block_stats WHERE block_height = ?', [blockHeight]);
+};
+
+export const updateInscriptionWallet = async (inscriptionId: string, newWallet: string): Promise<void> => {
+  if (!db) throw new Error('Database not initialized');
+  await db.run('UPDATE deploys SET current_wallet = ? WHERE id = ?', [newWallet, inscriptionId]);
+  await db.run('UPDATE mints SET current_wallet = ? WHERE id = ?', [newWallet, inscriptionId]);
+  await db.run('UPDATE bitmaps SET current_wallet = ? WHERE inscription_id = ?', [newWallet, inscriptionId]);
+  await db.run('UPDATE parcels SET wallet = ? WHERE inscription_id = ?', [newWallet, inscriptionId]);
 };
 
 export { db };

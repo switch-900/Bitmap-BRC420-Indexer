@@ -6,10 +6,19 @@ import {
 } from '../db/database';
 import { validateDeploy, validateMint, validateBitmap } from './validation';
 import { Deploy, Mint, Bitmap, Transfer } from '../types';
+import { processParcel, parseParcelContent } from './parcelProcessor';
 import logger from './logger';
 
-const API_URL = process.env.API_URL || 'http://192.168.1.66:4000';
-const API_WALLET_URL = process.env.API_WALLET_URL || 'http://192.168.1.66:3006/api';
+// Load Umbrel configuration
+let umbrelConfig: any;
+try {
+    umbrelConfig = require('../config/umbrel.js');
+} catch (error) {
+    logger.debug('Umbrel config not found, using environment variables');
+}
+
+const API_URL = umbrelConfig?.getApiUrl() || process.env.API_URL || 'http://ordinals_web_1:4000';
+const API_WALLET_URL = umbrelConfig?.getMempoolApiUrl() || process.env.API_WALLET_URL || 'http://mempool_web_1:3006/api';
 
 
 let databaseInitialized = false;
@@ -105,7 +114,7 @@ export const processBlock = async (blockHeight: number) => {
         const blockData = await fetchBlockData(blockHeight);
         logger.info(`Fetched data for block ${blockHeight}, found ${blockData.inscriptions.length} inscriptions`);
 
-        let deployCount = 0, mintCount = 0, bitmapCount = 0;
+        let deployCount = 0, mintCount = 0, bitmapCount = 0, parcelCount = 0;
 
         for (const [index, inscriptionId] of blockData.inscriptions.entries()) {
             try {
@@ -127,8 +136,17 @@ export const processBlock = async (blockHeight: number) => {
                         const mint = await processMint({ id: content.split('/')[2] }, inscriptionId, blockHeight, index, walletInfo.address);
                         if (mint) mintCount++;
                     } else if (content.endsWith('.bitmap')) {
-                        const bitmap = await processBitmap(content, inscriptionId, blockHeight, index, walletInfo.address);
-                        if (bitmap) bitmapCount++;
+                        // Check if it's a parcel (format: number.number.bitmap) or bitmap (format: number.bitmap)
+                        const parcelData = parseParcelContent(content);
+                        if (parcelData) {
+                            // It's a parcel
+                            const parcel = await processParcel(inscriptionId, content, walletInfo.address, blockHeight, Date.now());
+                            if (parcel) parcelCount++;
+                        } else {
+                            // It's a bitmap
+                            const bitmap = await processBitmap(content, inscriptionId, blockHeight, index, walletInfo.address);
+                            if (bitmap) bitmapCount++;
+                        }
                     }
                 }
 
@@ -138,7 +156,8 @@ export const processBlock = async (blockHeight: number) => {
             }
         }
 
-        logger.info(`Finished processing block ${blockHeight}. Deploys: ${deployCount}, Mints: ${mintCount}, Bitmaps: ${bitmapCount}`);
+        logger.info(`Finished processing block ${blockHeight}. Deploys: ${deployCount}, Mints: ${mintCount}, Bitmaps: ${bitmapCount}, Parcels: ${parcelCount}`);
+        return { inscriptions: blockData.inscriptions.length, bitmaps: bitmapCount, deploys: deployCount, mints: mintCount, parcels: parcelCount };
     } catch (error) {
         logger.error(`Error processing block ${blockHeight}:`, error);
         throw error;

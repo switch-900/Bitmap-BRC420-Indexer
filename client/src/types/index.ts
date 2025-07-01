@@ -1,4 +1,3 @@
-
 export interface Deploy {
     id: string;
     name: string;
@@ -30,5 +29,19 @@ export interface Deploy {
     address: string;
     timestamp: number;
     block_height: number;
+    wallet: string;
+  }
+
+  export interface Parcel {
+    inscription_id: string;
+    parcel_number: number;
+    bitmap_number: number;
+    bitmap_inscription_id: string;
+    content: string;
+    address: string;
+    block_height: number;
+    timestamp: number;
+    transaction_count?: number;
+    is_valid: boolean;
     wallet: string;
   }

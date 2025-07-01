@@ -42,8 +42,9 @@ export const startBlockProcessing = async () => {
       const totalBitmaps = results.reduce((sum, r) => sum + r.bitmaps, 0);
       const totalDeploys = results.reduce((sum, r) => sum + r.deploys, 0);
       const totalMints = results.reduce((sum, r) => sum + r.mints, 0);
+      const totalParcels = results.reduce((sum, r) => sum + r.parcels, 0);
 
-      logger.info(`Batch processed. Blocks: ${unprocessedBlocks.length}, Total Inscriptions: ${totalInscriptions}, Bitmaps: ${totalBitmaps}, Deploys: ${totalDeploys}, Mints: ${totalMints}`);
+      logger.info(`Batch processed. Blocks: ${unprocessedBlocks.length}, Total Inscriptions: ${totalInscriptions}, Bitmaps: ${totalBitmaps}, Deploys: ${totalDeploys}, Mints: ${totalMints}, Parcels: ${totalParcels}`);
 
       processNextBatch();
     } catch (error) {
@@ -55,7 +56,7 @@ export const startBlockProcessing = async () => {
   processNextBatch();
 };
 
-const createWorker = (blocks: number[]): Promise<{ inscriptions: number, bitmaps: number, deploys: number, mints: number }> => {
+const createWorker = (blocks: number[]): Promise<{ inscriptions: number, bitmaps: number, deploys: number, mints: number, parcels: number }> => {
   return new Promise((resolve, reject) => {
     const worker = new Worker(__filename, { workerData: { blocks } });
     worker.on('message', resolve);
@@ -75,8 +76,9 @@ if (!isMainThread) {
         acc.bitmaps += result.bitmaps;
         acc.deploys += result.deploys;
         acc.mints += result.mints;
+        acc.parcels += result.parcels;
         return acc;
-      }, { inscriptions: 0, bitmaps: 0, deploys: 0, mints: 0 });
+      }, { inscriptions: 0, bitmaps: 0, deploys: 0, mints: 0, parcels: 0 });
       parentPort?.postMessage(aggregatedResults);
     })
     .catch((error) => parentPort?.postMessage({ success: false, error: error.message }));

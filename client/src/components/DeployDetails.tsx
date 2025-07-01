@@ -18,6 +18,7 @@ const DeployDetails: React.FC = () => {
   }, [id]);
 
   const loadDeployDetails = async () => {
+    if (!id) return;
     try {
       const data = await getDeployDetails(id);
       setDeploy(data);
@@ -27,7 +28,7 @@ const DeployDetails: React.FC = () => {
   };
 
   const loadDeployMints = async () => {
-    if (!hasMore) return;
+    if (!hasMore || !id) return;
     setLoading(true);
     try {
       const data = await getDeployMints(id, page);
@@ -40,6 +41,8 @@ const DeployDetails: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (!id) return <div>Invalid deploy ID</div>;
 
   if (!deploy) return <div>Loading...</div>;
 

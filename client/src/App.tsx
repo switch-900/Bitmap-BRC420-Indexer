@@ -5,6 +5,8 @@ import Navigation from './components/Navigation';
 import HomePage from './pages/HomePage';
 import DeployPage from './pages/DeployPage';
 import BitmapsPage from './pages/BitmapsPage';
+import BitmapDetailsPage from './pages/BitmapDetailsPage';
+import ParcelsPage from './pages/ParcelsPage';
 
 const App: React.FC = () => {
   return (
@@ -15,6 +17,8 @@ const App: React.FC = () => {
           <Route path="/" element={<HomePage />} />
           <Route path="/deploy/:id" element={<DeployPage />} />
           <Route path="/bitmaps" element={<BitmapsPage />} />
+          <Route path="/bitmap/:bitmapNumber" element={<BitmapDetailsPage />} />
+          <Route path="/parcels" element={<ParcelsPage />} />
         </Routes>
       </div>
     </Router>

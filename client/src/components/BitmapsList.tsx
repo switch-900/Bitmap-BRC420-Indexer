@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getBitmaps } from '../services/api';
 import { Bitmap } from '../types';
 
@@ -41,12 +42,13 @@ const BitmapsList: React.FC<BitmapsListProps> = ({ searchQuery }) => {
   return (
     <div className="bitmaps-list">
       {bitmaps.map(bitmap => (
-        <div key={bitmap.inscription_id} className="bitmap-item">
+        <Link key={bitmap.inscription_id} to={`/bitmap/${bitmap.bitmap_number}`} className="bitmap-item">
           <h3>Bitmap #{bitmap.bitmap_number}</h3>
           <p>Inscription ID: {bitmap.inscription_id}</p>
           <p>Address: {bitmap.address}</p>
+          <p>Current Owner: {bitmap.wallet}</p>
           <p>Timestamp: {new Date(bitmap.timestamp).toLocaleString()}</p>
-        </div>
+        </Link>
       ))}
       {!loading && hasMore && <button onClick={loadBitmaps}>Load More</button>}
       {loading && <p>Loading...</p>}

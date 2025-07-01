@@ -1,5 +1,5 @@
 import Joi from 'joi';
-import { Deploy, Mint, Bitmap } from '../types';
+import { Deploy, Mint, Bitmap, Parcel } from '../types';
 
 export const deploySchema = Joi.object<Deploy>({
   p: Joi.string().valid('brc-420').required(),
@@ -36,6 +36,21 @@ export const bitmapSchema = Joi.object<Bitmap>({
   current_wallet: Joi.string().required()
 });
 
+export const parcelSchema = Joi.object<Parcel>({
+  inscription_id: Joi.string().required(),
+  parcel_number: Joi.number().integer().min(0).required(),
+  bitmap_number: Joi.number().integer().min(0).required(),
+  bitmap_inscription_id: Joi.string().required(),
+  content: Joi.string().pattern(/^\d+\.\d+\.bitmap$/).required(),
+  address: Joi.string().required(),
+  block_height: Joi.number().integer().min(0).required(),
+  timestamp: Joi.number().integer().min(0).required(),
+  transaction_count: Joi.number().integer().min(0).optional(),
+  is_valid: Joi.boolean().required(),
+  wallet: Joi.string().required()
+});
+
 export const validateDeploy = (data: any) => deploySchema.validate(data);
 export const validateMint = (data: any) => mintSchema.validate(data);
 export const validateBitmap = (data: any) => bitmapSchema.validate(data);
+export const validateParcel = (data: any) => parcelSchema.validate(data);
