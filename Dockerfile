@@ -5,7 +5,7 @@ WORKDIR /app/client
 
 # Copy client package files
 COPY client/package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy client source code
 COPY client/ ./
@@ -20,7 +20,7 @@ WORKDIR /app/server
 
 # Copy server package files
 COPY server/package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy server source code
 COPY server/ ./
@@ -38,8 +38,12 @@ RUN apk add --no-cache sqlite
 
 # Copy server build and dependencies
 COPY --from=server-builder /app/server/dist ./server/dist
-COPY --from=server-builder /app/server/node_modules ./server/node_modules
 COPY --from=server-builder /app/server/package*.json ./server/
+
+# Install only production dependencies for the server
+WORKDIR /app/server
+RUN npm ci --only=production
+WORKDIR /app
 
 # Copy client build
 COPY --from=client-builder /app/client/build ./client/build
