@@ -1,6 +1,7 @@
 # Build stage for client
 FROM node:18-alpine AS client-builder
 
+# Set working directory
 WORKDIR /app/client
 
 # Copy client package files
