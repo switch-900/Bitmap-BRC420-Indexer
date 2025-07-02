@@ -1,6 +1,6 @@
 {
   "name": "bitmap-brc420-indexer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Bitcoin inscriptions & parcel indexer for BRC-420 and Bitmaps",
   "private": true,
   "workspaces": [
