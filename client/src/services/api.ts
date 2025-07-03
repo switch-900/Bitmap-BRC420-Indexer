@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Deploy, Mint, Bitmap, Parcel } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 export const getDeploys = async (page: number = 1, limit: number = 20, search: string = ''): Promise<Deploy[]> => {
   const response = await axios.get(`${API_BASE_URL}/deploys/with-mints`, {
