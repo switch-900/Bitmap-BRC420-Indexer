@@ -3,12 +3,12 @@ version: "3.8"
 services:
   app_proxy:
     environment:
-      APP_HOST: Bitmap-BRC420-Indexer_web_1
+      APP_HOST: bitmap-brc420-indexer_web_1
       APP_PORT: 8080
       PROXY_AUTH_ADD: "false"
 
   web:
-    image: ghcr.io/switch-900/Bitmap-BRC420-Indexer:latest
+    image: ghcr.io/switch-900/bitmap-brc420-indexer:latest
     restart: unless-stopped
     volumes:
       - ${APP_DATA_DIR}/data:/app/data
@@ -43,7 +43,4 @@ services:
       
       # App identification for Umbrel environment
       - UMBREL_APP=true
-      - APP_NAME=Bitmap-BRC420-Indexer
-    networks:
-      default:
-        ipv4_address: $APP_BITMAP_BRC420_INDEXER_IP
+      - APP_NAME=bitmap-brc420-indexer

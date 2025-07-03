@@ -5,7 +5,7 @@
 set -e
 
 # Configuration
-IMAGE_NAME="ghcr.io/switch-900/Bitmap-BRC420-Indexer"
+IMAGE_NAME="ghcr.io/switch-900/bitmap-brc420-indexer"
 VERSION=${1:-"latest"}
 
 echo "Building Bitmap BRC-420 Indexer Docker image..."
