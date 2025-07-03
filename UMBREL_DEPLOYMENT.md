@@ -86,7 +86,7 @@ services:
     # Umbrel's reverse proxy configuration
     
   web:
-    image: ghcr.io/switch-900/bitmap-brc420-indexer:latest
+    image: ghcr.io/switch-900/Bitmap-BRC420-Indexer:latest
     # Main application container
     # Serves both web interface and API
     # Runs background indexing process
@@ -132,7 +132,7 @@ Monitor these metrics for optimal performance:
    docker ps | grep -E "(bitcoin|ordinals)"
    
    # Check app logs
-   docker logs bitmap-brc420-indexer_web_1
+   docker logs Bitmap-BRC420-Indexer_web_1
    ```
 
 2. **Slow Indexing**
@@ -187,7 +187,7 @@ The app follows Umbrel's update mechanism:
 
 ```bash
 # Pull latest image
-docker pull ghcr.io/switch-900/bitmap-brc420-indexer:latest
+docker pull ghcr.io/switch-900/Bitmap-BRC420-Indexer:latest
 
 # Restart the app through Umbrel interface
 # or manually:
@@ -205,7 +205,7 @@ Important data to backup:
 cp /app/data/brc420.db /backup/location/
 
 # Configuration backup  
-cp /umbrel/apps/bitmap-brc420-indexer/docker-compose.yml /backup/location/
+cp /umbrel/apps/Bitmap-BRC420-Indexer/docker-compose.yml /backup/location/
 ```
 
 ### Migration
@@ -278,7 +278,7 @@ npm run dev
 
 ```bash
 # Build custom Docker image
-docker build -t my-bitmap-brc420-indexer .
+docker build -t my-Bitmap-BRC420-Indexer .
 
 # Update docker-compose.yml to use custom image
 ```

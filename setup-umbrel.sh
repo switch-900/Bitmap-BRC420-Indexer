@@ -14,7 +14,7 @@ fi
 
 # Configuration
 REPO_URL="https://github.com/switch-900/Bitmap-BRC420-Indexer.git"
-APP_DIR="bitmap-brc420-indexer"
+APP_DIR="Bitmap-BRC420-Indexer"
 UMBREL_APPS_DIR="$HOME/umbrel/apps"
 
 # Functions

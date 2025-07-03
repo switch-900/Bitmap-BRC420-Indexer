@@ -103,12 +103,12 @@ This is a full-stack TypeScript application with:
 
 1. **Build the Docker Image**:
    ```bash
-   docker build -t bitmap-brc420-indexer .
+   docker build -t Bitmap-BRC420-Indexer .
    ```
 
 2. **Run the Container**:
    ```bash
-   docker run -p 8080:8080 -v ./data:/app/data bitmap-brc420-indexer
+   docker run -p 8080:8080 -v ./data:/app/data Bitmap-BRC420-Indexer
    ```
 
 ## ⚙️ Configuration
@@ -168,10 +168,10 @@ When running on Umbrel, the app automatically configures itself to use:
 
 ```bash
 # Build development image
-docker build -t bitmap-brc420-indexer:dev .
+docker build -t Bitmap-BRC420-Indexer:dev .
 
 # Run with volume mounts for development
-docker run -p 8080:8080 -v ./data:/app/data -v ./logs:/app/logs bitmap-brc420-indexer:dev
+docker run -p 8080:8080 -v ./data:/app/data -v ./logs:/app/logs Bitmap-BRC420-Indexer:dev
 ```
 
 ## 📊 Data Storage
