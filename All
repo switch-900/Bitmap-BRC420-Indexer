@@ -505,8 +505,8 @@ setupDatabase().catch((error) => {
     process.exit(1); // Exit if the database setup fails
 });
 
-const API_URL = process.env.API_URL || 'http://192.168.1.66:4000';
-const API_WALLET_URL = process.env.API_WALLET_URL || 'http://192.168.1.66:3006/api';
+const API_URL = process.env.API_URL || 'http://umbrel.local:4000';
+const API_WALLET_URL = process.env.API_WALLET_URL || 'http://umbrel.local:3006/api';
 
 // Function to fetch block data
 const fetchBlockData = async (blockHeight: number) => {
