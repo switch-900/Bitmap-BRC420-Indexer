@@ -35,8 +35,8 @@ services:
       - STATUS_TIMEOUT=10000
       
       # Umbrel internal service endpoints
-      - ORD_API_URL=http://ordinals_web_1:4000
-      - API_URL=http://ordinals_web_1:4000
+      - ORD_API_URL=http://ord:80
+      - API_URL=http://ord:80
       
       # Umbrel internal mempool API endpoint  
       - API_WALLET_URL=http://mempool_web_1:3006/api

@@ -1,10 +1,10 @@
 require('dotenv').config();
 
 module.exports = {
-    // Primary API URLs - prefer external APIs for reliability
-    ORD_API_URL: process.env.ORD_API_URL || 'https://ordinals.com',
-    API_URL: process.env.API_URL || 'https://ordinals.com', 
-    API_WALLET_URL: process.env.API_WALLET_URL || 'https://mempool.space/api',
+    // Primary API URLs - prefer internal Umbrel services when available
+    ORD_API_URL: process.env.ORD_API_URL || 'http://ord:80',
+    API_URL: process.env.API_URL || 'http://ord:80', 
+    API_WALLET_URL: process.env.API_WALLET_URL || 'http://mempool_web_1:3006/api',
     
     // Bitcoin RPC connection for direct node access (if available in Umbrel)
     BITCOIN_RPC_HOST: process.env.BITCOIN_RPC_HOST || null,
@@ -76,6 +76,7 @@ module.exports = {
         
         // Official Umbrel service naming patterns
         const officialEndpoints = [
+            'http://ord:80',
             'http://ordinals_web_1:4000',
             'http://ordinals_server_1:4000', 
             'http://ordinals_app_1:4000',
