@@ -80,8 +80,8 @@ This is a full-stack TypeScript application with:
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/switch-900/Bitmap-BRC420-Indexer.git
-   cd Bitmap-BRC420-Indexer
+   git clone https://github.com/switch-900/bitmap-brc420-indexer.git
+   cd bitmap-brc420-indexer
    ```
 
 2. **Install Dependencies**:
@@ -103,12 +103,12 @@ This is a full-stack TypeScript application with:
 
 1. **Build the Docker Image**:
    ```bash
-   docker build -t Bitmap-BRC420-Indexer .
+   docker build -t bitmap-brc420-indexer .
    ```
 
 2. **Run the Container**:
    ```bash
-   docker run -p 8080:8080 -v ./data:/app/data Bitmap-BRC420-Indexer
+   docker run -p 8080:8080 -v ./data:/app/data bitmap-brc420-indexer
    ```
 
 ## ⚙️ Configuration
@@ -168,10 +168,10 @@ When running on Umbrel, the app automatically configures itself to use:
 
 ```bash
 # Build development image
-docker build -t Bitmap-BRC420-Indexer:dev .
+docker build -t bitmap-brc420-indexer:dev .
 
 # Run with volume mounts for development
-docker run -p 8080:8080 -v ./data:/app/data -v ./logs:/app/logs Bitmap-BRC420-Indexer:dev
+docker run -p 8080:8080 -v ./data:/app/data -v ./logs:/app/logs bitmap-brc420-indexer:dev
 ```
 
 ## 📊 Data Storage
@@ -215,8 +215,8 @@ This project is open source. See the [LICENSE](LICENSE) file for details.
 
 ## 🛠 Support
 
-- **Issues**: [GitHub Issues](https://github.com/switch-900/Bitmap-BRC420-Indexer/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/switch-900/Bitmap-BRC420-Indexer/discussions)
+- **Issues**: [GitHub Issues](https://github.com/switch-900/bitmap-brc420-indexer/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/switch-900/bitmap-brc420-indexer/discussions)
 - **Community**: [Bitcoin Inscription Community](https://bitcointalk.org)
 
 ## 🔗 Related Projects

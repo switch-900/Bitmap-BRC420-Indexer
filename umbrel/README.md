@@ -155,7 +155,7 @@ This project is open source. See the LICENSE file for details.
 ## 🤝 Support
 
 For issues or questions:
-- GitHub Issues: [Report a bug](https://github.com/switch-900/Bitmap-BRC420-Indexer/issues)
+- GitHub Issues: [Report a bug](https://github.com/switch-900/bitmap-brc420-indexer/issues)
 - Community: Join the Bitcoin inscription community discussions
 
 ---

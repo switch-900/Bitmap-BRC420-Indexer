@@ -1,5 +1,5 @@
 {
-  "name": "Bitmap-BRC420-Indexer",
+  "name": "bitmap-brc420-indexer",
   "version": "1.0.1",
   "description": "Bitcoin inscriptions & parcel indexer for BRC-420 and Bitmaps",
   "private": true,
@@ -11,7 +11,7 @@
     "install-all": "npm install",
     "dev": "concurrently \"npm run dev --workspace=server\" \"npm run start --workspace=client\"",
     "build": "npm run build --workspace=server && npm run build --workspace=client",
-    "build:docker": "docker build -t Bitmap-BRC420-Indexer .",
+    "build:docker": "docker build -t bitmap-brc420-indexer .",
     "start": "npm run start --workspace=server",
     "start:client": "npm run start --workspace=client",
     "start:server": "npm run start --workspace=server",
@@ -19,8 +19,8 @@
     "dev:server": "npm run dev --workspace=server",
     "setup-db": "npm run setup-db --workspace=server",
     "test:install": "./umbrel/scripts/test.sh",
-    "docker:build": "docker build -t Bitmap-BRC420-Indexer .",
-    "docker:run": "docker run -p 8080:8080 -p 5000:5000 Bitmap-BRC420-Indexer"
+    "docker:build": "docker build -t bitmap-brc420-indexer .",
+    "docker:run": "docker run -p 8080:8080 -p 5000:5000 bitmap-brc420-indexer"
   },
   "keywords": [
     "bitcoin",
@@ -34,12 +34,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/switch-900/Bitmap-BRC420-Indexer.git"
+    "url": "https://github.com/switch-900/bitmap-brc420-indexer.git"
   },
   "bugs": {
-    "url": "https://github.com/switch-900/Bitmap-BRC420-Indexer/issues"
+    "url": "https://github.com/switch-900/bitmap-brc420-indexer/issues"
   },
-  "homepage": "https://github.com/switch-900/Bitmap-BRC420-Indexer#readme",
+  "homepage": "https://github.com/switch-900/bitmap-brc420-indexer#readme",
   "devDependencies": {
     "concurrently": "^7.6.0"
   },

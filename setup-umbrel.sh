@@ -13,8 +13,8 @@ if [[ $EUID -eq 0 ]]; then
 fi
 
 # Configuration
-REPO_URL="https://github.com/switch-900/Bitmap-BRC420-Indexer.git"
-APP_DIR="Bitmap-BRC420-Indexer"
+REPO_URL="https://github.com/switch-900/bitmap-brc420-indexer.git"
+APP_DIR="bitmap-brc420-indexer"
 UMBREL_APPS_DIR="$HOME/umbrel/apps"
 
 # Functions

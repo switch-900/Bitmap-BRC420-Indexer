@@ -44,8 +44,8 @@ Before installing, ensure these Umbrel apps are installed and running:
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/switch-900/Bitmap-BRC420-Indexer.git
-   cd Bitmap-BRC420-Indexer
+   git clone https://github.com/switch-900/bitmap-brc420-indexer.git
+   cd bitmap-brc420-indexer
    ```
 
 2. **Run Setup Script**:
@@ -86,7 +86,7 @@ services:
     # Umbrel's reverse proxy configuration
     
   web:
-    image: ghcr.io/switch-900/Bitmap-BRC420-Indexer:latest
+    image: ghcr.io/switch-900/bitmap-brc420-indexer:latest
     # Main application container
     # Serves both web interface and API
     # Runs background indexing process
@@ -132,7 +132,7 @@ Monitor these metrics for optimal performance:
    docker ps | grep -E "(bitcoin|ordinals)"
    
    # Check app logs
-   docker logs Bitmap-BRC420-Indexer_web_1
+   docker logs bitmap-brc420-indexer_web_1
    ```
 
 2. **Slow Indexing**
@@ -187,7 +187,7 @@ The app follows Umbrel's update mechanism:
 
 ```bash
 # Pull latest image
-docker pull ghcr.io/switch-900/Bitmap-BRC420-Indexer:latest
+docker pull ghcr.io/switch-900/bitmap-brc420-indexer:latest
 
 # Restart the app through Umbrel interface
 # or manually:
@@ -205,7 +205,7 @@ Important data to backup:
 cp /app/data/brc420.db /backup/location/
 
 # Configuration backup  
-cp /umbrel/apps/Bitmap-BRC420-Indexer/docker-compose.yml /backup/location/
+cp /umbrel/apps/bitmap-brc420-indexer/docker-compose.yml /backup/location/
 ```
 
 ### Migration
@@ -265,7 +265,7 @@ For developers wanting to modify the app:
 
 ```bash
 # Clone repository
-git clone https://github.com/switch-900/Bitmap-BRC420-Indexer.git
+git clone https://github.com/switch-900/bitmap-brc420-indexer.git
 
 # Install dependencies
 npm install
@@ -278,7 +278,7 @@ npm run dev
 
 ```bash
 # Build custom Docker image
-docker build -t my-Bitmap-BRC420-Indexer .
+docker build -t my-bitmap-brc420-indexer .
 
 # Update docker-compose.yml to use custom image
 ```
@@ -287,7 +287,7 @@ docker build -t my-Bitmap-BRC420-Indexer .
 
 ### Getting Help
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/switch-900/Bitmap-BRC420-Indexer/issues)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/switch-900/bitmap-brc420-indexer/issues)
 - **Documentation**: Check the README files for detailed information
 - **Community**: Join Bitcoin inscription community discussions
 
