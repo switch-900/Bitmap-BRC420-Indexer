@@ -1,5 +1,6 @@
 manifestVersion: 1
-bitmap-brc420-indexercategory: bitcoin
+id: bitmap-brc420-indexer
+category: bitcoin
 name: Bitmap BRC-420 Indexer
 version: "1.0.0"
 tagline: Bitcoin inscriptions & parcel indexer for BRC-420 and Bitmaps
