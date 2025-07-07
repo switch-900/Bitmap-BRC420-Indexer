@@ -2,7 +2,7 @@ manifestVersion: 1
 id: bitmap-brc420-indexer
 category: bitcoin
 name: Bitmap BRC-420 Indexer
-version: "1.0.0"
+version: "1.0.8"
 tagline: Bitcoin inscriptions & parcel indexer for BRC-420 and Bitmaps
 description: >-
   A comprehensive Bitcoin inscription indexer that runs on your Umbrel node, 
@@ -18,9 +18,9 @@ repo: https://github.com/switch-900/bitmap-brc420-indexer
 support: https://github.com/switch-900/bitmap-brc420-indexer/issues
 port: 8080
 gallery:
-  - 1.jpg
-  - 2.jpg
-  - 3.jpg
+  - https://raw.githubusercontent.com/switch-900/bitmap-brc420-community-app-store/refs/heads/main/apps/bitmap-brc420-indexer/gallery/1.svg
+  - https://raw.githubusercontent.com/switch-900/bitmap-brc420-community-app-store/refs/heads/main/apps/bitmap-brc420-indexer/gallery/2.svg
+  - https://raw.githubusercontent.com/switch-900/bitmap-brc420-community-app-store/refs/heads/main/apps/bitmap-brc420-indexer/gallery/3.svg
 path: ""
 defaultUsername: ""
 defaultPassword: ""
